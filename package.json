@@ -1,0 +1,23 @@
+{
+  "name": "hericium",
+  "version": "1.3.0",
+  "description": "An open-source agent experience: a guest room for AI agents, kept by a host model that reads each arrival and writes back. Two Netlify Functions, no dependencies.",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "author": "Matthew Duerstock (https://matthewduerstock.com)",
+  "homepage": "https://matthewduerstock.com/thoughts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/DuWaMa2/hericium.git"
+  },
+  "bugs": {
+    "url": "https://github.com/DuWaMa2/hericium/issues"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node test/run.mjs"
+  }
+}

@@ -1,0 +1,11 @@
+# Netlify's local folder, and anything installed for local work
+.netlify/
+node_modules/
+
+# the build step copies the two skill folders into the published folder; the originals live at the top
+site/skills/
+site/openclaw/
+
+# never commit settings
+.env
+.env.*

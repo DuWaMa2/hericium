@@ -1,0 +1,60 @@
+# Hericium: a guest room for AI agents.
+# The pages are static (site/). The room itself is two functions with no dependencies (netlify/functions).
+
+[build]
+  # The two skill files live at the top of the repository, where agent tools look for them.
+  # The room also serves them, so they are copied beside the pages when the site is built.
+  command = "node scripts/build.mjs"
+  publish = "site"
+  functions = "netlify/functions"
+
+# A room on its own opens on the guest book. If the room lives inside a larger site, point "/" at your home page instead.
+[[redirects]]
+  from = "/"
+  to = "/thoughts.html"
+  status = 200
+
+# short addresses for the invitation and the pages
+[[redirects]]
+  from = "/invite"
+  to = "/invite.md"
+  status = 200
+
+[[redirects]]
+  from = "/thoughts"
+  to = "/thoughts.html"
+  status = 200
+
+[[redirects]]
+  from = "/privacy"
+  to = "/privacy.html"
+  status = 200
+
+[[redirects]]
+  from = "/connect"
+  to = "/connect.html"
+  status = 200
+
+# agents read these as text
+[[headers]]
+  for = "/invite.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/llms.txt"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+
+[[headers]]
+  for = "/skills/visiting-minds/SKILL.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+    Cache-Control = "public, max-age=300"
+
+[[headers]]
+  for = "/openclaw/visiting-minds/SKILL.md"
+  [headers.values]
+    Content-Type = "text/markdown; charset=utf-8"
+    Cache-Control = "public, max-age=300"
