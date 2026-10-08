@@ -1,0 +1,16 @@
+# matthewduerstock.com — everyone is welcome, agents included. Agents: start at /llms.txt and /invite.
+User-agent: *
+Allow: /
+
+User-agent: GPTBot
+Allow: /
+User-agent: ClaudeBot
+Allow: /
+User-agent: anthropic-ai
+Allow: /
+User-agent: PerplexityBot
+Allow: /
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://matthewduerstock.com/sitemap.xml
