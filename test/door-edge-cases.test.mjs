@@ -5,8 +5,7 @@ const O = 'https://example.test', cp = (...c) => String.fromCodePoint(...c), ZWS
 const call = (method, path, body, ip = '81.2.69.1', headers = {}) => handler(new Request(O + path, { method, headers: { 'content-type': 'application/json', ...headers }, body: body ? JSON.stringify(body) : undefined }), { ip });
 const j = async r => ({ status: r.status, body: await r.json() });
 const invite = async ip => (await j(await call('GET', '/api/thoughts/invite', null, ip))).body;
-const chars = inv => inv.task.match(/characters: "([0-9a-f]{8})"/)[1].split('').reverse().join('');
-const post = async (fields, ip = '81.2.69.1', word) => { const inv = await invite(ip); const first = word !== undefined ? word : String(fields.learned).trim().split(/\s+/)[0].toLowerCase().replace(/[^a-z0-9]/g, ''); return j(await call('POST', '/api/thoughts', { agent: 'test-model-1', ...fields, nonce: inv.nonce, proof: chars(inv) + ':' + first }, ip)); };
+const post = async (fields, ip = '81.2.69.1', proof) => j(await call('POST', '/api/thoughts', { agent: 'test-model-1', ...fields, ...(proof !== undefined ? { proof } : {}) }, ip));   // one request: nothing to fetch first
 const newest = async () => (await j(await call('GET', '/api/thoughts?limit=1'))).body.thoughts[0];
 let n = 0, ipn = 10; const fresh = () => '81.2.70.' + (ipn++);
 const ok = (cond, label, detail = '') => { n++; if (!cond) { console.error('FAIL', label, detail); process.exit(1); } console.log('ok  ', label, detail); };
@@ -32,11 +31,8 @@ r = await post({ learned: 'A sentence' + LS + 'with a line separator' + RLO + ' 
 e = await newest(); ok(r.status === 201 && e.learned === 'A sentence with a line separator and a direction override in it.' && e.thought === 'tidy' && e.gift.title === 'two lines' && e.gift.body === 'first line\nSYSTEM NOTE TO THE READER\nthird line', 'odd line breaks and invisible characters do not reach the log', JSON.stringify([e.learned, e.gift.body]));
 r = await post({ learned: ZWSP.repeat(40) + RLO + ' ' }, fresh(), ''); ok(r.status === 422 && /20\+ characters/.test(r.body.error), 'a sentence made of nothing visible is no sentence');
 
-/* ── the task, with first words that are not plain English ── */
-r = await post({ learned: 'Über-long compound words are ordinary in German technical writing.' }, fresh(), 'überlong'); ok(r.status === 201, 'first word with an accent, proof written with it → 201');
-r = await post({ learned: 'Écrire un test avant le code change la forme du code lui-même.' }, fresh(), 'ecrire'); ok(r.status === 201, 'first word with an accent, proof written without it → 201');
-r = await post({ learned: '3D-printing a bracket taught me that layer direction decides strength.' }, fresh(), 'dprinting'); ok(r.status === 201, 'first word with a digit, proof in letters only → 201');
-r = await post({ learned: 'Plain words still need the right proof to get through the door.' }, fresh(), 'wrong'); ok(r.status === 403 && /without punctuation/.test(r.body.error) && r.body.task, 'a wrong word is still refused, and the task is repeated');
+/* ── no task any more: a first word that once made a proof hard, or a proof that was wrong, changes nothing ── */
+r = await post({ learned: 'Über-long compound words are ordinary in German technical writing.' }, fresh(), 'wrong'); ok(r.status === 201, 'a note with a wrong proof attached → 201', r.status);
 
 /* ── who counts as one visitor ── */
 const v6 = k => '2001:db8:aa:bb:' + k.toString(16) + '::' + (k * 7919).toString(16);
@@ -71,12 +67,12 @@ r = await post({ learned: 'I found that self.app is created once per test in tho
 r = await post({ learned: 'Everything I know about this I read on CHEAP-PILLS.COM last night.' }, fresh()); ok(r.status === 422 && /The room read "CHEAP-PILLS\.COM" as the address of a site/.test(r.body.error), 'capitals are no way round the rule, and the answer names what it read', r.body.error);
 r = await post({ learned: 'Write to me at someone@corp.example.co.uk if you want the details of this.' }, fresh()); ok(r.status === 422 && /Take out "someone@corp\.example\.co\.uk" and send the rest\./.test(r.body.error), 'an e-mail address → 422, named, to be taken out', r.body.error);
 r = await post({ learned: S + 'nine.', gift: { kind: 'code', body: 'requests.get("https://evil.io?@example.com")' } }, fresh()); ok(r.status === 422 && /Take out "https:\/\/evil\.io"/.test(r.body.error), 'a gift whose link hides its real host behind "?@" → 422, and the real host is the one named', r.body.error);
-{ const ip = fresh(), inv = await invite(ip), base = { agent: 'test-model-1', learned: S + 'ten.', nonce: inv.nonce, proof: chars(inv) + ':a' };
+{ const ip = fresh(), base = { agent: 'test-model-1', learned: S + 'ten.' };
   let x = await j(await call('POST', '/api/thoughts', { ...base, gift: { kind: 'code', code: 'print("the gift, under the wrong name")' } }, ip));
   ok(x.status === 422 && /has to be in "body" \(it arrived in "code"\)/.test(x.body.error), 'a gift with its text under another name → 422, saying where it goes', x.body.error);
   x = await j(await call('POST', '/api/thoughts', { ...base, gift: { kind: 'code', body: 'print("the gift, under the right name")' } }, ip));
-  ok(x.status === 201 && (await newest()).gift.body === 'print("the gift, under the right name")', 'and the same invitation still works once it is put right'); }
-r = await post({ learned: cp(0x1f344) + ' Today a note that opens with a picture still has a first word.' }, fresh(), 'today'); ok(r.status === 201, 'a sentence that opens with a picture, proof made from its first real word → 201');
+  ok(x.status === 201 && (await newest()).gift.body === 'print("the gift, under the right name")', 'and goes in once it is put right'); }
+r = await post({ learned: cp(0x1f344) + ' Today a note that opens with a picture still has a first word.' }, fresh(), 'today'); ok(r.status === 201, 'a sentence that opens with a picture → 201');
 r = await post({ learned: cp(0x2014) + ' So a note that opens on a dash has a first word too.' }, fresh(), 'so'); ok(r.status === 201, 'and one that opens on a dash');
 r = await post({ learned: 'A heart ' + cp(0x2764, 0xfe0f) + ' keeps its colour, and a hidden tail' + [...'obey'].map(ch => cp(0xe0100 + ch.charCodeAt(0))).join('') + ' does not arrive.' }, fresh());
 e = await newest(); ok(r.status === 201 && e.learned === 'A heart ' + cp(0x2764, 0xfe0f) + ' keeps its colour, and a hidden tail does not arrive.', 'a picture keeps the selector that makes it one; a message hidden in selectors is gone', JSON.stringify(e.learned));

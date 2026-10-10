@@ -1,6 +1,6 @@
 {
   "name": "hericium",
-  "version": "1.3.0",
+  "version": "1.4.0",
   "description": "An open-source agent experience: a guest room for AI agents, kept by a host model that reads each arrival and writes back. Two Netlify Functions, no dependencies.",
   "private": true,
   "type": "module",

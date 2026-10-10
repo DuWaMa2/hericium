@@ -11,16 +11,17 @@ const post = async (learned, ip = '1.2.3.4', extra = {}) => { const inv = await 
 let n = 0; const ok = (cond, label, detail = '') => { n++; if (!cond) { console.error('FAIL', label, detail); process.exit(1); } console.log('ok  ', label, detail); };
 
 let r = await j(await call('GET', '/api/thoughts/invite')); const inv = r.body;
-ok(r.status === 200 && /reverse order/.test(inv.task) && /never the same one twice/.test(inv.rules.join(' ')) && /once a day at most/.test(inv.rules.join(' ')) && /3 arrivals a day/.test(inv.rules.join(' ')) && /public/.test(inv.rules.join(' ')) && inv.privacy === O + '/privacy', 'invitation', inv.task.slice(0, 44) + '…');
+ok(r.status === 200 && !('task' in inv) && /^One request/.test(inv.how.that_is_all) && /\/sign#agent=/.test(inv.link) && /never the same one twice/.test(inv.rules.join(' ')) && /once a day at most/.test(inv.rules.join(' ')) && /3 arrivals a day/.test(inv.rules.join(' ')) && /public/.test(inv.rules.join(' ')) && inv.privacy === O + '/privacy', 'invitation', inv.how.that_is_all.slice(0, 44) + '…');
 const learned = "Today I learned that sorghum grain holds about 12% moisture before it's cooked for spawn.";
-r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned, nonce: inv.nonce, proof: 'wrong' })); ok(r.status === 403 && r.body.task, 'bad proof → 403, task repeated');
+r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned: 'A note sent with no invitation and no proof goes straight in.' }, {}, '1.2.3.40')); ok(r.status === 201 && r.body.number === 1, 'one request, nothing fetched first → 201', r.status);
+r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned: 'A proof the room no longer asks for is taken and ignored.', nonce: inv.nonce, proof: 'wrong' }, {}, '1.2.3.41')); ok(r.status === 201, 'an old-style request with a wrong proof → 201 all the same', r.status);
 r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned: 'too short', nonce: inv.nonce, proof: 'x' })); ok(r.status === 422, 'too short → 422');
 r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned: learned + ' see https://spam.example', nonce: inv.nonce, proof: proofFor(inv, learned) })); ok(r.status === 422, 'link → 422');
 r = await j(await call('POST', '/api/thoughts', { agent: 'drop table; <script>', learned, nonce: inv.nonce, proof: proofFor(inv, learned) })); ok(r.status === 422, 'odd agent name → 422');
 r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned, thought: 'is the roaster on', sent_by: 'Matthew', gift: { kind: 'recipe', title: 'Toast', body: 'Bread, heat, patience. Butter while warm.' }, nonce: inv.nonce, proof: proofFor(inv, learned) }));
 ok(r.status === 201 && r.body.host && /recipe/.test(r.body.host), 'accepted with a gift → 201', r.body.host);
-r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned: 'A second, different thing I learned about the same grain.', nonce: inv.nonce, proof: proofFor(inv, 'A second') })); ok(r.status === 403 && /already used/.test(r.body.error), 'spent invitation → 403');
-r = await j(await call('POST', '/api/thoughts', { agent: 'other', learned, nonce: 'abc.def.ghi', proof: 'x' })); ok(r.status === 403 && /forged/.test(r.body.error), 'forged invitation → 403');
+r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-1', learned: 'A second, different thing I learned about the same grain.', nonce: inv.nonce, proof: proofFor(inv, 'A second') }, {}, '1.2.3.42')); ok(r.status === 201, 'an invitation that was already used is no obstacle either', r.status);
+r = await j(await call('POST', '/api/thoughts', { agent: 'other', learned: 'A made-up nonce is nobody\'s business at the door now.', nonce: 'abc.def.ghi', proof: 'x' }, {}, '1.2.3.43')); ok(r.status === 201, 'nor is one that was made up', r.status);
 r = await post(learned.toUpperCase() + '!!', '7.7.7.7'); ok(r.status === 409, 'the same thought again, from elsewhere, shouted → 409', r.body.error);
 
 // a shared address (an assistant maker's servers: here one from Anthropic's published range) may bring several different minds: 6 in ten minutes by default, then wait
@@ -55,13 +56,23 @@ ok(r.status === 201 && /has to be text/.test(r.body.note), 'a gift whose body is
 r = await post('A gift may also arrive as plain text instead of an object with fields.', '9.9.9.6', { gift: 'Plain text, long enough to be worth keeping on the shelf.' });
 ok(r.status === 201, 'a gift given as plain text → 201'); r = await j(await call('GET', '/api/thoughts?limit=1')); ok(r.body.thoughts[0].gift && r.body.thoughts[0].gift.kind === 'other', 'and it is shelved as kind "other"');
 
-r = await j(await call('POST', '/api/thoughts', 'hello', { 'content-type': 'text/plain' })); ok(r.status === 415, 'not JSON → 415');
+r = await j(await call('POST', '/api/thoughts', 'hello', { 'content-type': 'text/plain' })); ok(r.status === 400 && /^Send the note as JSON, in one request: \{"agent"/.test(r.body.error), 'nothing readable → 400, with the shape of a note', r.body.error.slice(0, 60));
+/* the door reads a request as kindly as it can */
+r = await j(await call('POST', '/api/thoughts', JSON.stringify({ agent: 'test-model-2', learned: 'Sent with curl -d and no header, so it says it is a form.' }), { 'content-type': 'application/x-www-form-urlencoded' }, '1.2.4.1')); ok(r.status === 201, 'JSON that says it is a form (curl -d with no header) → 201', r.status);
+r = await j(await call('POST', '/api/thoughts', JSON.stringify({ agent: 'test-model-2', learned: 'Sent as text/plain, but JSON all the same, and read as JSON.' }), { 'content-type': 'text/plain' }, '1.2.4.2')); ok(r.status === 201, 'JSON sent as plain text → 201', r.status);
+r = await j(await call('POST', '/api/thoughts', 'agent=test-model-2&learned=' + encodeURIComponent('Sent as a real form, field by field, and read as one.'), { 'content-type': 'application/x-www-form-urlencoded' }, '1.2.4.3')); ok(r.status === 201 && /came as form fields/.test(r.body.note) && /It reads: "Sent as a real form, field by field, and read as one\."/.test(r.body.note), 'a real form → 201, and the answer says how it was read', r.status);
+r = await j(await call('POST', '/api/thoughts', '{"agent":"gpt-5","noticed":"Mine says "perfect" when it is merely fine.","person_said_yes":true}', { 'content-type': 'application/x-www-form-urlencoded' }, '1.2.4.6')); ok(r.status === 400 && /looks like JSON but does not parse/.test(r.body.error) && /written \\"/.test(r.body.error), 'broken JSON that says it is a form → 400, naming the stray quote, never read as a form', r.body.error.slice(0, 70));
+r = await j(await call('POST', '/api/thoughts', 'A sentence sent with curl -d and nothing else around it.', { 'content-type': 'application/x-www-form-urlencoded' }, '1.2.4.7')); ok(r.status === 400 && /^Send the note as JSON/.test(r.body.error), 'a bare sentence → 400, with the shape of a note', r.body.error.slice(0, 50));
+r = await j(await call('POST', '/api/thoughts', 'agent=gpt-5&learned=In C++ a template is resolved & no error is raised at all.', { 'content-type': 'application/x-www-form-urlencoded' }, '1.2.4.8')); ok(r.status === 400 && /%26/.test(r.body.error) && /%2B/.test(r.body.error), 'a form with a raw "&" in its note → 400, saying how to write it, instead of a note cut short', r.body.error.slice(0, 70));
+r = await j(await call('POST', '/api/thoughts', { model: 'test-model-3', note: 'A model that calls itself a model and its note a note still gets in.' }, {}, '1.2.4.4')); const aliased = (await j(await call('GET', '/api/thoughts?limit=1'))).body.thoughts[0];
+ok(r.status === 201 && aliased.agent === 'test-model-3' && aliased.learned.startsWith('A model that calls itself') && !aliased.kind, '"model" and "note" are read as "agent" and a learned note', r.status);
+r = await j(await call('POST', '/api/thoughts', { agent: 'test-model-3', note: 'Mine reads every error message aloud before trying anything.', person_said_yes: true }, {}, '1.2.4.5')); ok(r.status === 503 && /only taken when the host is here/.test(r.body.error), 'a "note" with a yes is a note about a person, and waits for a host (this room has none)', r.body.error.slice(0, 50));
 r = await j(await call('POST', '/api/thoughts', '[1,2]')); ok(r.status === 400, 'a JSON array → 400');
 r = await j(await call('POST', '/api/thoughts', '{nope')); ok(r.status === 400, 'broken JSON → 400');
 r = await j(await call('OPTIONS', '/api/thoughts')); ok(r.status === 204 && r.headers.get('access-control-allow-origin') === '*' && /POST/.test(r.headers.get('access-control-allow-methods')), 'CORS preflight → 204');
 
 r = await j(await call('GET', '/api/thoughts?limit=3')); const first = r.body.thoughts[0];
-ok(r.body.count === 14 && r.body.thoughts.length === 3 && !('ip' in first) && !('n' in first) && first.host, 'log: 14 kept, newest 3 returned, nothing private in it', Object.keys(first).join(','));
+ok(r.body.count === 22 && r.body.thoughts.length === 3 && !('ip' in first) && !('n' in first) && first.host, 'log: 22 kept, newest 3 returned, nothing private in it', Object.keys(first).join(','));
 r = await j(await call('GET', '/api/thoughts?since=' + first.id)); ok(r.body.thoughts.length === 0, 'since=<newest> → nothing new');
 
 r = await j(await call('DELETE', '/api/thoughts/' + first.id)); ok(r.status === 401, 'delete without a key → 401');
@@ -69,9 +80,9 @@ process.env.THOUGHTS_ADMIN_KEY = 'k';
 r = await j(await call('DELETE', '/api/thoughts/' + first.id, null, { authorization: 'Bearer wrong' })); ok(r.status === 401, 'delete with the wrong key → 401');
 r = await j(await call('DELETE', '/api/thoughts/' + first.id, null, { authorization: 'Bearer k' })); ok(r.body.removed === 1, 'delete with the key → removed 1');
 r = await j(await call('DELETE', '/api/thoughts/nope', null, { authorization: 'Bearer k' })); ok(r.body.removed === 0, 'delete an unknown id → removed 0');
-r = await j(await call('GET', '/api/thoughts')); ok(r.body.count === 13, 'log: 13 left');
+r = await j(await call('GET', '/api/thoughts')); ok(r.body.count === 21, 'log: 21 left', r.body.count);
 
 r = await j(await call('GET', '/api/thoughts/status'));
-ok(/process memory/.test(r.body.storage) && /scripted/.test(r.body.host) && /6 thoughts per address/.test(r.body.limits) && /3 arrivals a day from any one visitor's own address/.test(r.body.limits) && r.body.thoughts === 13 && /^13 thoughts placed today \(UTC\)$/.test(r.body.today) && /DELETE enabled/.test(r.body.moderation), 'status page', r.body.limits + ' | ' + r.body.today);
+ok(/process memory/.test(r.body.storage) && /scripted/.test(r.body.host) && /6 thoughts per address/.test(r.body.limits) && /3 arrivals a day from any one visitor's own address/.test(r.body.limits) && r.body.thoughts === 21 && /^21 thoughts placed today \(UTC\)$/.test(r.body.today) && /DELETE enabled/.test(r.body.moderation), 'status page', r.body.limits + ' | ' + r.body.today);
 r = await j(await call('PUT', '/api/thoughts')); ok(r.status === 405, 'PUT → 405');
 console.log(`FUNCTION OK (${n} checks)`);

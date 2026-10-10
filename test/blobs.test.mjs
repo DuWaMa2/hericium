@@ -7,7 +7,7 @@ import './helpers/env.mjs';
 const mode = process.argv[2] || 'normal';
 const SITE = 'site123', BASE = 'https://blobs.test';
 process.env.NETLIFY_BLOBS_CONTEXT = Buffer.from(JSON.stringify({ token: 'tok', siteID: SITE, edgeURL: BASE, uncachedEdgeURL: BASE })).toString('base64');
-const blobs = new Map(); let tick = 0, gets = 0, puts = 0, lists = 0, refused = 0, conditional = 0, wrongAuth = 0;
+const blobs = new Map(); let tick = 0, gets = 0, puts = 0, counted = 0, lists = 0, refused = 0, conditional = 0, wrongAuth = 0;
 const lag = () => new Promise(r => setTimeout(r, 1 + Math.random() * 12));
 globalThis.fetch = async (url, opts = {}) => {
   const u = new URL(url); if (u.origin !== BASE) throw new Error('unexpected fetch: ' + url);
@@ -22,7 +22,7 @@ globalThis.fetch = async (url, opts = {}) => {
   }
   if (!opts.method || opts.method === 'GET') { gets++; const b = blobs.get(key); if (!b) return new Response('not found', { status: 404 }); return new Response(b.text, { status: 200, headers: mode === 'no-etag' || mode === 'list-etag' ? {} : { etag: mode === 'weak-etag' ? 'W/' + b.etag : b.etag } }); }
   if (opts.method === 'PUT') {
-    puts++; const b = blobs.get(key), cond = 'if-match' in h || 'if-none-match' in h; if (cond) conditional++; if ('if-match' in h) seenIfMatch.push(h['if-match']);
+    if (key.endsWith('/funnel')) counted++; else puts++; const b = blobs.get(key), cond = 'if-match' in h || 'if-none-match' in h; if (cond) conditional++; if ('if-match' in h) seenIfMatch.push(h['if-match']);
     if (mode === 'refuses-conditions' && cond) return new Response('conditions not supported', { status: 400 });
     if (mode === 'spurious-412' && cond) { refused++; return new Response('', { status: 412 }); }          // a store whose preconditions never hold
     if (versioned) { if ('if-match' in h && (!b || b.etag !== h['if-match'])) { refused++; return new Response('', { status: 412 }); } if (h['if-none-match'] === '*' && b) { refused++; return new Response('', { status: 412 }); } }
@@ -43,10 +43,11 @@ const LOG = `/${SITE}/site:visiting-minds/log`;
 let st = (await j(await call('GET', '/api/thoughts/status'))).body;
 const verdict = { normal: /^safe \(versioned writes, checked just now/, 'list-etag': /^safe \(versioned writes, checked just now/, 'weak-etag': /^safe \(versioned writes, checked just now/, 'no-etag': /^NOT versioned: the store accepted a write whose precondition was stale/, 'ignores-conditions': /^NOT versioned: the store accepted a write whose precondition was stale/, 'refuses-conditions': /^NOT versioned: the store rejected a conditional write/, 'spurious-412': /^NOT versioned: the store refused a write whose precondition was true/ }[mode];
 ok(/durable/.test(st.storage) && verdict.test(st.simultaneous_posts), 'the status page tests the live store and reports what it finds', st.simultaneous_posts);
-const t1 = Date.now(), p1 = puts;
+const t1 = Date.now(), p1 = puts, c1 = counted;
 let r = await post('The first arrival writes the log into being.', '1.0.0.1'); ok(r.status === 201 && blobs.has(LOG), 'first post creates the blob at the expected key', LOG);
 r = await post('The second arrival appends to what the first one left.', '1.0.0.2'); ok(r.status === 201 && JSON.parse(blobs.get(LOG).text).length === 2, 'second post appends');
 ok(Date.now() - t1 < 5000 && puts - p1 <= 6, 'two posts cost a handful of writes and no long waits, whatever the store does', `${puts - p1} PUTs in ${Date.now() - t1} ms`);
+ok(counted - c1 <= 16, 'and counting them for the funnel costs a few writes more at most, and never waits for a store that will not version', `${counted - c1} PUTs to the count`);
 if (mode === 'weak-etag') ok([...new Set(seenIfMatch)].every(v => !v.startsWith('W/')) || seenIfMatch.some(v => !v.startsWith('W/')), 'weak tags are retried in their strong form', seenIfMatch.slice(0, 3).join('  '));
 ok(wrongAuth === 0, 'every request carried the bearer token');
 

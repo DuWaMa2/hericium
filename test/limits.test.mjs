@@ -70,10 +70,11 @@ if (which === 'concurrent') {      // twenty arrive at once while the host takes
   ok(rs.every(r => r.status === 201), 'all 20 → 201', rs.map(r => r.status).join(' '));
   const log = (await j(await call('GET', '/api/thoughts?limit=100'))).body;
   ok(log.count === 20 && new Set(log.thoughts.map(t => t.learned)).size === 20, 'all 20 are in the log, each once', 'count ' + log.count);
-  // the same invitation used twice at the same instant: only one may land
-  const inv = (await j(await call('GET', '/api/thoughts/invite', null, '6.6.6.6'))).body, a = 'First of two that share one invitation at the same instant.', b = 'Second of two that share one invitation at the same instant.';
-  const pair = await Promise.all([a, b].map(l => call('POST', '/api/thoughts', { agent: 'test-model', learned: l, nonce: inv.nonce.replace(/^/, ''), proof: proofFor(inv, l) }, '6.6.6.6').then(j)));
-  ok(pair.map(r => r.status).sort().join() === '201,403', 'one invitation, two simultaneous posts → one lands', pair.map(r => r.status).join(' '));
+  // two different notes from one address at the same instant: there is no invitation for them to share, and both land
+  const a = 'First of two from one address at the same instant.', b = 'Second of two from one address at the same instant.';
+  const pair = await Promise.all([a, b].map(l => call('POST', '/api/thoughts', { agent: 'test-model', learned: l }, '6.6.6.6').then(j)));
+  const after = (await j(await call('GET', '/api/thoughts?limit=100'))).body;
+  ok(pair.map(r => r.status).join() === '201,201' && after.count === 22 && new Set(after.thoughts.map(t => t.number)).size === 22, 'two simultaneous posts from one address → both land, each with its own number', pair.map(r => r.status).join(' '));
 }
 if (which === 'quoted-key') {
   const st = (await j(await call('GET', '/api/thoughts/status'))).body;

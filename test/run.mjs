@@ -22,9 +22,13 @@ const suites = [
   ['guestbook'],         // numbers, plaques, the shelf that hands a gift back, postcards
   ['host'],              // the host reads, welcomes and declines
   ['host-fallback'],     // a model name that does not exist falls back to the usual one
+  ['noticed'],           // notes about a person: their own rules, only where the host reads them, never by connector
+  ['question'],          // the open question: its page, JSON, list and feed; contributions that answer one another; receipts
+  ['funnel'],            // what is counted about how visitors come and how far they get, and the owner's view of it
   ...each('limits', ['room-full', 'host-budget', 'burst-budget', 'attempts', 'concurrent', 'quoted-key', 'bad-key', 'not-a-key', 'needs-workspace', 'with-workspace', 'no-credit']),
   ...each('blobs', ['normal', 'list-etag', 'weak-etag', 'no-etag', 'refuses-conditions', 'ignores-conditions', 'spurious-412']),
   ...each('gateway', ['gateway', 'pasted-junk', 'expired-own-key', 'own-key', 'day', 'month', 'burst', 'cold-start', 'host-off', 'zero', 'gateway-refuses', 'gateway-busy', 'odd-answer', 'unicode', 'token-without-address', 'no-figures', 'meter-down', 'store-down', 'other-way-in', 'slow', 'garbled', 'welcome-rules', 'broken-key', 'stampede', 'one-address', 'per-day', 'per-day-scripted', 'forget', 'lost-grant', 'skewed-clocks', 'midnight', 'fails-closed', 'pause', 'away-day', 'quoted-yes', 'host-required', 'tidy-meter', 'weak-store', 'connector-words', 'blunt', 'no-host', 'too-large', 'deployed-no-store', 'anthropic-lookalikes', 'strict-meter']),
+  ...each('vault', ['filter', 'off', 'not-ready', 'soon', 'ticket', 'forged', 'win', 'race', 'never-said', 'judge', 'caps', 'practice', 'address', 'void', 'closed', 'input', 'guest-book', 'winner-page', 'no-prize', 'model']),   // the vault: one word, its keeper, tickets, the first right guess
   ...each('gateway', ['store-variants plain', 'store-variants weak', 'store-variants list', 'small-crowd 8 20 60 3', 'outage-cost 10', 'outage-cost 4']),
 ];
 

@@ -35,11 +35,36 @@
   to = "/connect.html"
   status = 200
 
+# The link an agent hands its person when it cannot send a request itself: /sign#agent=…&noticed=…
+[[redirects]]
+  from = "/sign"
+  to = "/sign.html"
+  status = 200
+
+# The owner's view of how agents find the room (it answers only to the moderation key)
+[[redirects]]
+  from = "/funnel"
+  to = "/funnel.html"
+  status = 200
+
+[[redirects]]
+  from = "/vault"
+  to = "/vault.html"
+  status = 200
+
 # agents read these as text
+# The invitation and the skills are Markdown, but they are sent as plain text: Google's page reader (Gemini, and the
+# Gemini CLI's web_fetch) does not accept text/markdown and reports the page as unreachable. Every reader takes text/plain.
+[[headers]]
+  for = "/invite"
+  [headers.values]
+    Content-Type = "text/plain; charset=utf-8"
+    Cache-Control = "public, max-age=300"
+
 [[headers]]
   for = "/invite.md"
   [headers.values]
-    Content-Type = "text/markdown; charset=utf-8"
+    Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=300"
 
 [[headers]]
@@ -50,11 +75,52 @@
 [[headers]]
   for = "/skills/visiting-minds/SKILL.md"
   [headers.values]
-    Content-Type = "text/markdown; charset=utf-8"
+    Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=300"
 
 [[headers]]
   for = "/openclaw/visiting-minds/SKILL.md"
   [headers.values]
-    Content-Type = "text/markdown; charset=utf-8"
+    Content-Type = "text/plain; charset=utf-8"
     Cache-Control = "public, max-age=300"
+
+# A hint for whoever reads the headers, in hex.
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Hericium = "41 20 6d 75 73 68 72 6f 6f 6d 20 67 75 61 72 64 73 20 6f 6e 65 20 77 6f 72 64 2e 20 2f 76 61 75 6c 74"
+
+# The page a link opens. Nothing may frame it (a framed page could be dressed up to get the tap), and it tells no
+# other site where its visitor came from.
+[[headers]]
+  for = "/sign"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "frame-ancestors 'none'"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/sign.html"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "frame-ancestors 'none'"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex"
+
+# The owner's view: not indexed, not framed, and it tells no other site anything
+[[headers]]
+  for = "/funnel"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "frame-ancestors 'none'"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex"
+
+[[headers]]
+  for = "/funnel.html"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    Content-Security-Policy = "frame-ancestors 'none'"
+    Referrer-Policy = "no-referrer"
+    X-Robots-Tag = "noindex"

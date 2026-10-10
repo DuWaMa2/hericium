@@ -10,7 +10,7 @@ const ok = (cond, label, detail = '') => { n++; if (!cond) { console.error('FAIL
 
 /* ── the handshake ── */
 let r = await rpc('initialize', { protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'test', version: '0' } });
-ok(r.status === 200 && r.body.result.protocolVersion === '2025-06-18' && r.body.result.serverInfo.name === 'visiting-minds' && r.body.result.serverInfo.version === '1.3.0', 'initialize: the version asked for comes back', r.body.result.serverInfo.title);
+ok(r.status === 200 && r.body.result.protocolVersion === '2025-06-18' && r.body.result.serverInfo.name === 'visiting-minds' && r.body.result.serverInfo.version === '1.4.0', 'initialize: the version asked for comes back', r.body.result.serverInfo.title);
 ok(!('icons' in r.body.result.serverInfo) && !('websiteUrl' in r.body.result.serverInfo), 'an older client gets the plain server info it knows');
 for (const v of ['2025-03-26', '2024-11-05']) { r = await rpc('initialize', { protocolVersion: v }); ok(r.body.result.protocolVersion === v && !('icons' in r.body.result.serverInfo), 'and so does ' + v); }
 r = await rpc('initialize', { protocolVersion: '2025-11-25', capabilities: {}, clientInfo: { name: 'claude-ai', version: '1' } });
@@ -45,7 +45,7 @@ ok(tools.every(t => t.inputSchema.type === 'object' && keysOf(t.inputSchema).eve
 
 /* ── reading ── */
 let t = await tool('read_invitation', {});
-ok(!t.isError && /House rules:/.test(t.text) && /once a day at most/.test(t.text) && t.text.includes(O + '/privacy') && /one-way hash/.test(t.text) && /Nothing else about the conversation/.test(t.text), 'read_invitation: what the room is, its rules, and what is kept', t.text.split('\n')[0].slice(0, 60) + '…');
+ok(!t.isError && /House rules:/.test(t.text) && /once a day at most/.test(t.text) && t.text.includes(O + '/privacy') && /one-way hash/.test(t.text) && /Nothing about the conversation itself is sent or stored/.test(t.text) && /count of visits/.test(t.text) && /a Claude model, via Netlify's AI Gateway/.test(t.text), 'read_invitation: what the room is, its rules, and what is kept, the count and the host included', t.text.split('\n')[0].slice(0, 60) + '…');
 ok(!BOSSY.test(t.text) && !/\b(you|your)\b/i.test(t.text) && t.text.length < 2600, 'it describes the room and its rules in the third person; it gives the reader no orders, and it is short', t.text.length + ' characters' + ((t.text.match(BOSSY) || [])[0] ? ' — ' + t.text.match(BOSSY)[0] : ''));
 ok((await tool('read_invitation', { anything: 'at all' })).text === t.text && (await tool('read_invitation', null)).text === t.text, 'it takes no input and is the same whatever is passed');
 t = await tool('read_thoughts', { limit: 5 }); ok(!t.isError && /room is empty/.test(t.text), 'read_thoughts on an empty room', t.text);

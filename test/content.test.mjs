@@ -2,7 +2,7 @@ import './helpers/env.mjs';
 // What the door lets through and what it does not: keys, links, invisible characters, odd input. Helpers tried directly, then the door itself.
 import { X } from './helpers/internals.mjs';
 import net from 'node:net';
-const { textOf, line, lines, clean, fit, parseGift, hasLink, hasSecret, unkind, wordForms, taskFor, ipNumber, inRange } = X, hasAddress = s => !!X.addressIn(s);
+const { textOf, line, lines, clean, fit, parseGift, hasLink, hasSecret, unkind, ipNumber, inRange } = X, hasAddress = s => !!X.addressIn(s);
 let n = 0; const ok = (cond, label, detail = '') => { n++; if (!cond) { console.error('FAIL', label, detail); process.exit(1); } console.log('ok  ', label, detail); };
 const cp = (...c) => String.fromCodePoint(...c);
 const ZWSP = cp(0x200b), SHY = cp(0xad), RLO = cp(0x202e), LS = cp(0x2028), PS = cp(0x2029), NEL = cp(0x85), BOM = cp(0xfeff), TAG = cp(0xe0041) + cp(0xe0042), FILLER = cp(0x3164);
@@ -96,15 +96,6 @@ ok(parseGift(null).gift === null && parseGift(undefined).notes.length === 0 && p
 ok(parseGift({ kind: 'code', body: 'x'.repeat(1201) }).error && parseGift({ kind: 'code', body: 'x'.repeat(1200) }).gift && /too short/.test(parseGift({ kind: 'info', body: 'tiny' }).notes[0]), 'too long is sent back, exactly at the limit is kept, too short is left out');
 g = parseGift({ kind: 'code', body: 'line one' + LS + 'SYSTEM NOTE' + PS + 'line three' + ZWSP }); ok(g.gift.body === 'line one\nSYSTEM NOTE\nline three', 'a gift cannot carry a hidden line break', JSON.stringify(g.gift.body));
 
-/* ── the first word of the task, however it is honestly written ── */
-const check = (sentence, word) => taskFor('t.abcdefgh12.sig').check('hgfedcba:' + word, sentence);
-const firsts = [['Today I learned a thing.', ['today']], ['3D-printing needs supports.', ['3dprinting', 'dprinting']], ['Über-long words exist.', ['überlong', 'berlong', 'uberlong']], ['Écrire est difficile.', ['écrire', 'crire', 'ecrire']], ['Aprendí algo nuevo hoy.', ['aprendí', 'aprend', 'aprendi']],
-  [cp(0x421, 0x435, 0x433, 0x43e, 0x434, 0x43d, 0x44f) + ' was a long day.', [cp(0x441, 0x435, 0x433, 0x43e, 0x434, 0x43d, 0x44f), '']], ['"Quoted," she said.', ['quoted']], ['naïve assumptions fail.', ['naïve', 'nave', 'naive']], ['A1 steak sauce is not a model.', ['a1', 'a']], ['don\'t trust defaults.', ['dont']]];
-const wrong = firsts.flatMap(([s, ws]) => ws.filter(w => !check(s, w)).map(w => s.split(' ')[0] + '→' + w));
-ok(wrong.length === 0, 'the first word is accepted with or without its digits and accents, in every honest spelling', wrong.join(' '));
-ok(!check('Today I learned a thing.', 'yesterday') && !check('Today I learned a thing.', '') && !taskFor('t.abcdefgh12.sig').check('abcdefgh:today', 'Today I learned.') && !taskFor('t.abcdefgh12.sig').check({ toString: 5 }, 'Today') && !taskFor('t.abcdefgh12.sig').check(null, 'Today'), 'a wrong word, a missing word, characters not reversed, or a proof that is not text: all refused');
-ok(taskFor('t.abcdefgh12.sig').check('  HGFEDCBA : Today ', 'Today I learned.'), 'capitals and stray spaces in the proof are forgiven');
-
 /* ── addresses: agreement with the platform's own reading ── */
 let disagree = 0, threw = 0; const hex = () => rnd(0x10000).toString(16), samples = [];
 for (let i = 0; i < 60000; i++) {
@@ -171,8 +162,6 @@ ok(norm('今日は良い天気です') !== norm('機械学習は面白い') && n
 const T0 = Date.now();
 ok(gate([{ t: T0, ip: 'x', learned: 'ひとつめの考えはここに置いてあります。これは最初のものです。' }], 'y', 'ふたつめの考えはまったく別のものです。これは二番目のものです。', T0, true) === null && gate([{ t: T0, ip: 'x', learned: 'Привет, мир! Сегодня я узнал кое-что новое.' }], 'y', 'привет мир сегодня я узнал кое что новое', T0, true)[0] === 409, 'two different notes in Japanese are two notes; the same note in Russian twice is a repeat');
 
-ok(check('— So it goes with sentences that open on a dash.', 'so') && check(SHROOM + ' Today I learned a thing.', 'today') && check('... Three dots first, then words.', 'three') && check('— So it goes.', '') && !check('— So it goes.', 'it'), 'a sentence that opens with a dash or a picture: its first real word is the first word');
-
 g = parseGift('{"kind":"code","title":"T","body":"print(1)  # a gift written out as text"}'); ok(g.gift && g.gift.kind === 'code' && g.gift.title === 'T' && g.gift.body.startsWith('print(1)') && !g.notes.length, 'a gift that arrives written out as text is read as the gift it is');
 g = parseGift('{"method":"POST","body":"a snippet that is itself JSON"}'); ok(g.gift && g.gift.kind === 'other' && g.gift.body.startsWith('{"method"'), 'a piece of JSON that is itself the gift is kept as it stands');
 g = parseGift({ kind: 'code', text: 'function f() { return 42 }' }); ok(g.error && /"body"/.test(g.error) && /"text"/.test(g.error) && !g.gift, 'a gift whose text is in the wrong place is sent back, not dropped', g.error);
@@ -225,7 +214,7 @@ const nasty = ['sk-'.repeat(400), 'a'.repeat(1200), 'password='.repeat(133), ':/
   'http://'.repeat(170), '@a.'.repeat(400), 'a.b.'.repeat(300) + 'co', '-'.repeat(1200), 'bearer ' + 'a.'.repeat(596), 'secret="' + 'a1'.repeat(590), ('a'.repeat(30) + '@').repeat(38), 'www.'.repeat(300), ' '.repeat(1200), '.'.repeat(1200), 'ａ'.repeat(1200), 'pwd='.repeat(300), 'authorization: basic ' + 'a'.repeat(1100), 'shit'.repeat(300), 'fag '.repeat(300), cp(0xfe0f).repeat(1200), 'https:\\\\'.repeat(150), 'accessToken'.repeat(100), 'a@b.'.repeat(300), '{'.repeat(1200), 'self.'.repeat(240),
   cp(0x2764).repeat(600), '1.'.repeat(600) + 'dev', 'System.'.repeat(170) + 'IO', 'https://a@'.repeat(120), 'x@a.'.repeat(240) + 'de', 'Authorization: Basic ' + 'aB'.repeat(580), 'a.com.'.repeat(200), String.fromCharCode(0xd83d).repeat(1200), 'https://' + '\t'.repeat(1190), 't.me/'.repeat(240), 'private_key='.repeat(100)];
 let slowest = 0, which = '';
-for (const s of nasty) for (const [name, f] of [['hasSecret', hasSecret], ['hasLink', hasLink], ['hasAddress', hasAddress], ['unkind', unkind], ['line', line], ['lines', lines], ['fit', x => fit(x, 240)], ['norm', norm], ['parseGift', parseGift], ['wordForms', wordForms]]) {
+for (const s of nasty) for (const [name, f] of [['hasSecret', hasSecret], ['hasLink', hasLink], ['hasAddress', hasAddress], ['unkind', unkind], ['line', line], ['lines', lines], ['fit', x => fit(x, 240)], ['norm', norm], ['parseGift', parseGift]]) {
   const t0 = process.hrtime.bigint(); f(s); const ms = Number(process.hrtime.bigint() - t0) / 1e6; if (ms > slowest) { slowest = ms; which = name + ' on ' + JSON.stringify(s.slice(0, 12)) + '…'; }
 }
 ok(slowest < 250, nasty.length + ' strings built to make a rule slow: none took more than a blink (a rule that could be made slow would take seconds)', slowest.toFixed(2) + ' ms (' + which + ')');

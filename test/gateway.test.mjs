@@ -363,11 +363,11 @@ if (which === 'forget') {             // the address hash and the invitation num
   netlify(); process.env.NETLIFY_BLOBS_CONTEXT = Buffer.from(JSON.stringify({ token: 'tok', siteID: 'site123', edgeURL: 'https://blobs.test', uncachedEdgeURL: 'https://blobs.test' })).toString('base64');
   const A = api(await load()), stored = () => JSON.parse(blobs.get('/site123/site:visiting-minds/log').text), record = () => JSON.parse(blobs.get('/site123/site:visiting-minds/meter').text);
   ok((await A.post('An arrival leaves its thought, and for a while the room knows where from.', '81.2.69.150')).status === 201, 'day one: an arrival');
-  ok(stored()[0].ip && stored()[0].n && Object.keys(record().dip).length === 1, 'while it is fresh, the entry carries the address hash and the invitation number', Object.keys(stored()[0]).join(','));
+  ok(stored()[0].ip && !('n' in stored()[0]) && Object.keys(record().dip).length === 1, 'while it is fresh, the entry carries the address hash (and no invitation number: there is none now)', Object.keys(stored()[0]).join(','));
   shift += DAY; ok((await A.post('A day later another arrives; the first is still inside the limits\' memory.', '81.2.69.151')).status === 201 && stored()[1].ip, 'a day later: still there');
   shift += 2 * DAY; ok((await A.post('Three days on, a third arrival tidies up behind the first two.', '81.2.69.152')).status === 201, 'three days on: a third arrival');
   const log = stored();
-  ok(log.length === 3 && log[0].ip && log[0].n && !('ip' in log[1]) && !('n' in log[1]) && !('ip' in log[2]) && !('n' in log[2]), 'the two old entries have lost both; the new one has them', log.map(e => Object.keys(e).join(',')).join(' | '));
+  ok(log.length === 3 && log[0].ip && !('ip' in log[1]) && !('ip' in log[2]), 'the two old entries have lost it; the new one has it', log.map(e => Object.keys(e).join(',')).join(' | '));
   ok(log[2].learned && log[2].host && log[2].agent && log[2].id && log[2].t, 'and everything that is shown is still there');
   ok(Object.keys(record().dip).length === 1 && record().sh === 0, 'the day\'s list of addresses in the meter started again too', JSON.stringify(record().dip).length + ' bytes');
   ok((await A.log()).count === 3, 'the log reads as before');
@@ -543,9 +543,9 @@ if (which === 'pause') {              // a model that stops answering must not b
   const lost = () => { const e = new TypeError('fetch failed'); e.cause = Object.assign(new Error('socket hang up'), { code: 'ECONNRESET' }); throw e; };   // no answer, and it may have been charged for
   gateway = lost;
   let r = await A.post('The first arrival of the outage gets no answer from the host.', next()); ok(r.status === 503 && /cannot be reached just now/.test(r.body.error), 'unanswered reading 1 → asked to come back');
-  r = await A.post('The second arrival of the outage gets no answer either.', next()); ok(r.status === 503 && /the same invitation works/.test(r.body.error), 'unanswered reading 2 → asked to come back');
+  r = await A.post('The second arrival of the outage gets no answer either.', next()); ok(r.status === 503 && /Try again in a little while\.$/.test(r.body.error) && !/invitation/.test(r.body.error), 'unanswered reading 2 → asked to come back');
   const spent2 = spentToday(await A.status()), calls2 = calls.length;
-  ok(spent2 > 1.1 && spent2 < 1.4, 'both stay on the books at the most they could have cost', spent2 + ' credits');
+  ok(spent2 > 1.1 && spent2 < 1.5, 'both stay on the books at the most they could have cost', spent2 + ' credits');   // twice the most one reading can cost, which grows with the host's instructions
   const got = {}; for (let i = 0; i < 20; i++) { shift += 12000; r = await A.post(`During the pause arrival ${i} is asked to come back without the host being troubled.`, next()); got[r.status] = (got[r.status] || 0) + 1; }
   ok(got[503] === 20 && calls.length === calls2 && spentToday(await A.status()) === spent2 && /cannot be reached just now/.test(r.body.error) && /Try again in about \d+ minutes?\.$/.test(r.body.error) && !/invitation/.test(r.body.error), 'twenty arrivals over the next four minutes: none reaches the model, nothing more is spent, each is told how long to wait', r.body.error);
   let st = await A.status(); ok(/NOTE: 2 readings for guests in a row went unanswered, so the host is being left alone until \d\d:\d\d UTC/.test(st.host), 'the status page says the host is being left alone, and until when', st.host.slice(st.host.indexOf('NOTE:')));
